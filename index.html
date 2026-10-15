@@ -26,9 +26,9 @@
     .amount{font-weight:700;font-size:16px}
     .muted{color:var(--muted);font-size:13px}
     .badge{padding:6px 10px;border-radius:999px;font-weight:700}
-    .badge.pending{background:rgba(245,158,11,.12);color:var(--accent)}
-    .badge.approved{background:rgba(34,197,94,.12);color:var(--success)}
-    .badge.rejected{background:rgba(239,68,68,.12);color:var(--danger)}
+    .badge-pending{background:rgba(245,158,11,.12);color:var(--accent)}
+    .badge-approved{background:rgba(34,197,94,.12);color:var(--success)}
+    .badge-rejected{background:rgba(239,68,68,.12);color:var(--danger)}
     .actions{display:flex;gap:8px}
     .btn{padding:8px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:700}
     .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,.04);color:var(--muted)}
@@ -39,7 +39,7 @@
     .detail.open{display:block}
     .screenshot{max-width:360px;border-radius:8px;border:1px solid rgba(255,255,255,.03);display:block}
     .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,.6);display:none;align-items:center;justify-content:center;padding:20px}
-    .modal{background:var(--card);width:100%;max-width:900px;border-radius:12px;padding:18px;border:1px solid rgba(255,255,255,.03)}
+    .modal{background:var(--card);width:100%;max-width:900px;border-radius:12px;padding:18px;border:1px solid rgba(255,255,255,.03);max-height:90vh;overflow:auto}
     .grid2{display:grid;grid-template-columns:1fr 380px;gap:16px}
     .notes{width:100%;min-height:90px;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.03);background:transparent;color:var(--muted)}
     .small{font-size:13px;color:var(--muted)}
@@ -77,8 +77,8 @@
   </div>
 
   <!-- Modal -->
-  <div id="modalBackdrop" class="modal-backdrop">
-    <div class="modal">
+  <div id="modalBackdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal" role="document">
       <div class="grid2">
         <div>
           <h3 id="mSchool">School</h3>
@@ -112,10 +112,27 @@
       apiBase: '' // optional API base for edge functions
     };
 
+    // Safe escaping (esc) - escapes quotes too for safe attribute insertion
+    function escSafe(s){
+      if(s === null || s === undefined) return '';
+      return String(s)
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;')
+        .replace(/'/g,'&#39;');
+    }
+
+    // Simple SVG placeholder data URI generator (keeps images reliable)
+    function placeholderDataURI(text='No+Image', w=640, h=420){
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}' viewBox='0 0 ${w} ${h}'><rect width='100%' height='100%' fill='%230e1b2a'/><text x='50%' y='50%' fill='%2398a6b3' font-family='Verdana,Arial' font-size='20' dominant-baseline='middle' text-anchor='middle'>${text}</text></svg>`;
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    }
+
     // Mock dataset (local-only) - replace with backend fetch
     const MOCK = [
-      {id:'pay_001', created_at:new Date().toISOString(), user_id:'user_1', school_id:'sch_001', school_name:'Bright Future School', amount:150000, currency:'RWF', method:'mobile_money', mobile_network:'MTN', mobile_number:'+250788123456', transaction_id:'MM-TRX-001', screenshot_url:'https://via.placeholder.com/640x420.png?text=Screenshot+1', status:'pending', notes:''},
-      {id:'pay_002', created_at:new Date(Date.now()-86400000).toISOString(), user_id:'user_2', school_id:'sch_002', school_name:'St Mary High', amount:200000, currency:'RWF', method:'bank_transfer', mobile_network:'Bank of Kigali', mobile_number:'+250788652314', transaction_id:'BTX-20261012', screenshot_url:'https://via.placeholder.com/640x420.png?text=Screenshot+2', status:'pending', notes:''}
+      {id:'pay_001', created_at:new Date().toISOString(), user_id:'user_1', school_id:'sch_001', school_name:'Bright Future School', amount:150000, currency:'RWF', method:'mobile_money', mobile_network:'MTN', mobile_number:'+250788123456', transaction_id:'MM-TRX-001', screenshot_url: null, status:'pending', notes:''},
+      {id:'pay_002', created_at:new Date(Date.now()-86400000).toISOString(), user_id:'user_2', school_id:'sch_002', school_name:'St Mary High', amount:200000, currency:'RWF', method:'bank_transfer', mobile_network:'Bank of Kigali', mobile_number:'+250788652314', transaction_id:'BTX-20261012', screenshot_url: null, status:'pending', notes:''}
     ];
 
     let payments = [...MOCK];
@@ -124,22 +141,48 @@
     const count = document.getElementById('count');
 
     function formatAmount(a,c='RWF'){ return new Intl.NumberFormat('en-US').format(a) + ' ' + c; }
-    function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
     function render(){
       list.innerHTML='';
       if(!filtered.length){ document.getElementById('empty').style.display='block'; count.textContent='0'; return; }
       document.getElementById('empty').style.display='none';
       count.textContent = filtered.length;
+
       filtered.forEach(p=>{
         const row = document.createElement('div'); row.className='payment-row';
+
         const left = document.createElement('div'); left.className='p-left';
         const meta = document.createElement('div'); meta.className='p-meta';
-        meta.innerHTML = `<div class='amount'>${formatAmount(p.amount,p.currency)}</div><div class='muted'>${esc(p.method)} • ${esc(p.mobile_network)} • ${esc(p.transaction_id)}</div><div class='muted'>School: <strong style='color:#fff'>${esc(p.school_name)}</strong></div><div class='muted'>Payer: ${esc(p.mobile_number)} • ${new Date(p.created_at).toLocaleString()}</div>`;
+
+        // safe text nodes
+        const amountDiv = document.createElement('div'); amountDiv.className='amount'; amountDiv.textContent = formatAmount(p.amount,p.currency);
+        const infoDiv = document.createElement('div'); infoDiv.className='muted'; infoDiv.textContent = `${p.method} • ${p.mobile_network} • ${p.transaction_id}`;
+        const schoolDiv = document.createElement('div'); schoolDiv.className='muted'; schoolDiv.innerHTML = `School: <strong style='color:#fff'>${escSafe(p.school_name||p.school_id)}</strong>`;
+        const payerDiv = document.createElement('div'); payerDiv.className='muted'; payerDiv.textContent = `Payer: ${p.mobile_number || '—'} • ${new Date(p.created_at).toLocaleString()}`;
+
+        meta.appendChild(amountDiv); meta.appendChild(infoDiv); meta.appendChild(schoolDiv); meta.appendChild(payerDiv);
         left.appendChild(meta);
+
         const right = document.createElement('div');
-        right.innerHTML = `<div style='display:flex;flex-direction:column;align-items:flex-end;gap:8px'><div class='badge ${p.status}'>${p.status}</div><div class='actions'><button class='btn ghost' onclick="openDetail('${p.id}',event)">View</button><button class='btn primary' onclick="openModal('${p.id}',event)">Verify</button></div></div>`;
-        row.appendChild(left); row.appendChild(right); list.appendChild(row);
+        const statusSpan = document.createElement('div');
+        const statusClass = (p.status==='pending')? 'badge-pending' : (p.status==='approved')? 'badge-approved' : (p.status==='rejected')? 'badge-rejected' : 'badge-pending';
+        statusSpan.className = 'badge ' + statusClass; statusSpan.textContent = p.status;
+
+        const actions = document.createElement('div'); actions.className='actions';
+        const viewBtn = document.createElement('button'); viewBtn.className='btn ghost'; viewBtn.textContent = 'View';
+        viewBtn.addEventListener('click', (e)=>{ e.stopPropagation(); openModal(p.id); });
+
+        const verifyBtn = document.createElement('button'); verifyBtn.className='btn primary'; verifyBtn.textContent = 'Verify';
+        verifyBtn.disabled = (p.status !== 'pending');
+        verifyBtn.addEventListener('click', (e)=>{ e.stopPropagation(); openModal(p.id); });
+
+        actions.appendChild(viewBtn); actions.appendChild(verifyBtn);
+
+        const containerRight = document.createElement('div'); containerRight.style.display='flex'; containerRight.style.flexDirection='column'; containerRight.style.alignItems='flex-end'; containerRight.style.gap='8px';
+        containerRight.appendChild(statusSpan); containerRight.appendChild(actions);
+
+        row.appendChild(left); row.appendChild(containerRight);
+        list.appendChild(row);
       });
     }
 
@@ -147,56 +190,64 @@
 
     document.getElementById('search').addEventListener('input', applyFilter);
     document.getElementById('status').addEventListener('change', applyFilter);
-    document.getElementById('refresh').addEventListener('click', ()=>{ loadPayments(); });
+    document.getElementById('refresh').addEventListener('click', ()=>{ loadPayments(false); }); // user triggered => show toast
     document.getElementById('useBackend').addEventListener('click', ()=>{ CONFIG.useBackend = !CONFIG.useBackend; document.getElementById('useBackend').textContent = CONFIG.useBackend ? 'Backend Enabled' : 'Connect Backend'; showToast('Backend mode: '+CONFIG.useBackend,'info'); });
 
-    async function loadPayments(){
+    async function loadPayments(suppressToast = true){
       if(CONFIG.useBackend){
         try{
           // TODO: replace url with your real endpoint or Supabase query
           const res = await fetch((CONFIG.apiBase||'') + '/api/payments');
           if(!res.ok) throw new Error('Failed to fetch');
-          const data = await res.json(); payments = data; filtered = [...payments]; applyFilter(); showToast('Loaded payments from backend','success');
-        }catch(e){ showToast('Failed to load from backend, using mock','error'); payments = [...MOCK]; filtered = [...payments]; applyFilter(); }
-      } else { payments = [...MOCK]; filtered = [...payments]; applyFilter(); showToast('Loaded mock payments','info'); }
+          const data = await res.json(); payments = data; filtered = [...payments]; applyFilter(); if(!suppressToast) showToast('Loaded payments from backend','success');
+        }catch(e){ if(!suppressToast) showToast('Failed to load from backend, using mock','error'); payments = [...MOCK]; filtered = [...payments]; applyFilter(); }
+      } else { payments = [...MOCK]; filtered = [...payments]; applyFilter(); if(!suppressToast) showToast('Loaded mock payments','info'); }
     }
-
-    // Detail open simple handler (expand inline)
-    function openDetail(id,event){ event.stopPropagation(); const el = event.target.closest('.payment-row'); /* could expand inline - left as simple */ showToast('Use Verify to see details','info'); }
 
     // Modal logic
     const modal = document.getElementById('modalBackdrop'); const mImg = document.getElementById('mImg'); let current=null;
-    function openModal(id,event){ if(event) event.stopPropagation(); current = payments.find(x=>x.id===id); if(!current) return; document.getElementById('mSchool').textContent = current.school_name; document.getElementById('mAmount').textContent = formatAmount(current.amount,current.currency); document.getElementById('mDate').textContent = new Date(current.created_at).toLocaleString(); document.getElementById('mTx').textContent = current.transaction_id; document.getElementById('mPayer').textContent = (current.mobile_number||'') + ' • ' + (current.mobile_network||''); mImg.src = current.screenshot_url || ''; document.getElementById('mNotes').value = current.notes || ''; modal.style.display = 'flex'; }
-    document.getElementById('modalClose').addEventListener('click', ()=>{ modal.style.display='none'; });
+    function openModal(id){ current = payments.find(x=>x.id===id); if(!current) return; document.getElementById('mSchool').textContent = current.school_name || current.school_id; document.getElementById('mAmount').textContent = formatAmount(current.amount,current.currency); document.getElementById('mDate').textContent = new Date(current.created_at).toLocaleString(); document.getElementById('mTx').textContent = current.transaction_id || '—'; document.getElementById('mPayer').textContent = (current.mobile_number||'—') + ' • ' + (current.mobile_network||''); document.getElementById('mNotes').value = current.notes || '';
+      // Load screenshot safely; use placeholder if missing
+      mImg.src = current.screenshot_url || placeholderDataURI('No+Image',640,420);
+      // Buttons enabled only for pending
+      document.getElementById('modalApprove').disabled = (current.status !== 'pending');
+      document.getElementById('modalReject').disabled = (current.status !== 'pending');
+      modal.style.display = 'flex'; modal.setAttribute('aria-hidden','false');
+    }
+
+    document.getElementById('modalClose').addEventListener('click', ()=>{ closeModal(); });
     document.getElementById('downloadBtn').addEventListener('click', ()=>{ if(current && current.screenshot_url) window.open(current.screenshot_url,'_blank'); else showToast('No screenshot available','error'); });
 
-    document.getElementById('modalApprove').addEventListener('click', async ()=>{
-      if(!current) return; const notes = document.getElementById('mNotes').value || '';
+    async function approveCurrent(){ if(!current) return; const notes = document.getElementById('mNotes').value || '';
       if(CONFIG.useBackend){
         try{
           const res = await fetch((CONFIG.apiBase||'') + '/api/payments/'+encodeURIComponent(current.id)+'/approve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({notes})});
-          if(!res.ok) throw new Error('Approve failed'); const data = await res.json(); showToast('Approved via backend','success'); // refresh list
-          await loadPayments();
+          if(!res.ok) throw new Error('Approve failed'); await loadPayments(false);
         }catch(e){ showToast('Approve failed: '+e.message,'error'); }
-      } else {
-        current.status = 'approved'; current.notes = notes; render(); showToast('Payment approved (mock). Entitlement would be created server-side.','success');
-      }
-      modal.style.display='none';
-    });
+      } else { current.status = 'approved'; current.notes = notes; applyFilter(); showToast('Payment approved (mock). Entitlement would be created server-side.','success'); }
+      closeModal(); }
 
-    document.getElementById('modalReject').addEventListener('click', async ()=>{
-      if(!current) return; const notes = document.getElementById('mNotes').value || '';
+    async function rejectCurrent(){ if(!current) return; const notes = document.getElementById('mNotes').value || '';
       if(CONFIG.useBackend){
-        try{ const res = await fetch((CONFIG.apiBase||'') + '/api/payments/'+encodeURIComponent(current.id)+'/reject',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({notes})}); if(!res.ok) throw new Error('Reject failed'); showToast('Rejected via backend','info'); await loadPayments(); }catch(e){ showToast('Reject failed: '+e.message,'error'); }
-      } else { current.status = 'rejected'; current.notes = notes; render(); showToast('Payment rejected (mock).','info'); }
-      modal.style.display='none';
-    });
+        try{ const res = await fetch((CONFIG.apiBase||'') + '/api/payments/'+encodeURIComponent(current.id)+'/reject',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({notes})}); if(!res.ok) throw new Error('Reject failed'); await loadPayments(false); }catch(e){ showToast('Reject failed: '+e.message,'error'); }
+      } else { current.status = 'rejected'; current.notes = notes; applyFilter(); showToast('Payment rejected (mock).','info'); }
+      closeModal(); }
+
+    document.getElementById('modalApprove').addEventListener('click', approveCurrent);
+    document.getElementById('modalReject').addEventListener('click', rejectCurrent);
+
+    function closeModal(){ modal.style.display='none'; modal.setAttribute('aria-hidden','true'); current=null; }
+
+    // backdrop click to close
+    document.getElementById('modalBackdrop').addEventListener('click', (e)=>{ if(e.target === document.getElementById('modalBackdrop')) closeModal(); });
+    // Esc key
+    document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeModal(); });
 
     // Small toast helper
     function showToast(msg,type='info'){ const d=document.createElement('div'); d.textContent=msg; d.style.position='fixed'; d.style.right='18px'; d.style.bottom='18px'; d.style.background = type==='success'? '#14532d' : type==='error'? '#7f1d1d' : '#1e3a5f'; d.style.color='#fff'; d.style.padding='10px 14px'; d.style.borderRadius='8px'; d.style.zIndex=9999; document.body.appendChild(d); setTimeout(()=>{ d.style.opacity='0'; setTimeout(()=>d.remove(),300); },3200); }
 
-    // Initial load
-    loadPayments();
+    // Initial load (suppress initial toast)
+    loadPayments(true);
     render();
   </script>
 </body>
