@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Payments Verification — Billan</title>
+<style>
+:root{--bg:#0b1120;--card:#111827;--line:#1f2b33;--muted:#94a3b8;--accent:#d4a843;--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:#e6eef6}
+.wrap{max-width:1100px;margin:0 auto;padding:20px}
+.hdr{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px}
+.title{font-size:20px;font-weight:700}
+.controls{display:flex;flex-wrap:wrap;gap:8px}
+.card{background:var(--card);border-radius:10px;padding:16px;border:1px solid #192229}
+input,select,textarea{font:inherit;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:#0f1720;color:#cbd5e1}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px}
+.stat b{display:block;font-size:22px}.stat span{color:var(--muted);font-size:13px}
+.req-row{border-bottom:1px solid rgba(255,255,255,.05)}
+.req-row:last-child{border-bottom:0}
+.req-main{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;cursor:pointer;flex-wrap:wrap}
+.meta{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.right{display:flex;gap:8px;align-items:center}
+.amount{font-weight:800;font-size:16px}.sub{color:var(--muted);font-size:13px}
+.badge,.chip{padding:5px 10px;border-radius:999px;font-weight:700;font-size:12px}
+.badge.pending{background:rgba(245,158,11,.12);color:var(--accent)}
+.badge.approved{background:rgba(34,197,94,.12);color:var(--ok)}
+.badge.rejected{background:rgba(239,68,68,.12);color:var(--bad)}
+.chip.approve{background:rgba(34,197,94,.15);color:var(--ok)}
+.chip.review{background:rgba(245,158,11,.15);color:var(--warn)}
+.chip.reject{background:rgba(239,68,68,.15);color:var(--bad)}
+.detail{display:none;padding:0 0 14px}.detail.open{display:block}
+.checks{list-style:none;margin:0 0 10px;padding:0;display:grid;gap:6px}
+.checks li{padding:8px 10px;border-radius:8px;border-left:3px solid;background:#0f1720;font-size:13px}
+.checks li span{display:block;color:var(--muted);margin-top:2px}
+.checks .pass{border-color:var(--ok)}.checks .warn{border-color:var(--warn)}.checks .fail{border-color:var(--bad)}
+.screenshot{max-width:420px;width:100%;border-radius:8px;border:1px solid #17202a;display:block;margin-top:8px}
+.actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+.btn{padding:8px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:700;font:inherit;font-weight:700;text-decoration:none;display:inline-block}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.primary{background:var(--accent);color:#06121a}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+.btn.success{background:var(--ok);color:#052014}
+.btn.danger{background:var(--bad);color:#fff}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;padding:12px}
+.modal{background:var(--card);width:min(860px,100%);max-height:92vh;overflow:auto;border-radius:10px;padding:16px;border:1px solid #182229}
+.cols{display:flex;gap:16px;flex-wrap:wrap}.cols>div{flex:1 1 320px;min-width:0}
+textarea{width:100%;min-height:80px}
+.footer{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;flex-wrap:wrap}
+.empty{padding:36px;text-align:center;color:var(--muted)}
+.note{color:var(--muted);font-size:12px;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <div class="title">Payments verification</div>
+    <div class="controls">
+      <input id="q" type="search" placeholder="Search TX, phone, school" aria-label="Search payments">
+      <select id="statusFilter" aria-label="Filter by status">
+        <option value="">All status</option><option value="pending">Pending</option>
+        <option value="approved">Approved</option><option value="rejected">Rejected</option>
+      </select>
+      <select id="verdictFilter" aria-label="Filter by engine verdict">
+        <option value="">All verdicts</option><option value="approve">Looks valid</option>
+        <option value="review">Needs review</option><option value="reject">Likely invalid</option>
+      </select>
+      <button id="refreshBtn" class="btn ghost">Refresh</button>
+      <button id="bulkBtn" class="btn primary">Approve all that look valid</button>
+    </div>
+  </div>
+  <div class="stats" id="stats"></div>
+  <div class="card">
+    <div id="paymentsList"></div>
+    <div id="empty" class="empty" style="display:none">No payments match these filters.</div>
+  </div>
+  <p class="note" id="srcNote"></p>
+</div>
+
+<div id="modal" class="modal-bg">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mSchool">
+    <div class="cols">
+      <div>
+        <h3 id="mSchool" style="margin:0 0 8px">School</h3>
+        <div><strong>Amount:</strong> <span id="mAmount"></span></div>
+        <div><strong>TX:</strong> <span id="mTx"></span></div>
+        <div style="margin-bottom:10px"><strong>Payer:</strong> <span id="mPayer"></span></div>
+        <label for="mSms"><strong>Confirmation SMS text</strong></label>
+        <textarea id="mSms" placeholder="Paste the MTN / Airtel / bank confirmation message here"></textarea>
+        <label for="mNotes" style="display:block;margin-top:10px"><strong>Admin notes</strong> <span class="sub">(required to reject)</span></label>
+        <textarea id="mNotes" placeholder="Add notes"></textarea>
+      </div>
+      <div>
+        <div id="mVerdict" style="margin-bottom:8px"></div>
+        <ul class="checks" id="mChecks"></ul>
+        <img id="mImg" class="screenshot" alt="Payment screenshot">
+      </div>
+    </div>
+    <div class="footer">
+      <button class="btn ghost" id="modalClose">Close</button>
+      <button class="btn danger" id="rejectBtn">Reject</button>
+      <button class="btn success" id="approveBtn">Approve</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============ CONFIG ============ */
+const CONFIG = {
+  SUPABASE_URL: '',        // TODO SUPABASE: project URL
+  SUPABASE_ANON_KEY: '',   // TODO SUPABASE: anon public key
+  BUSINESS_NUMBERS: ['250788000000'], // your receiving numbers (a payer using one of these is fraud)
+  PLANS: [50000, 150000, 200000],     // expected amounts in RWF; TODO SUPABASE: load from a plans table
+  MIN_AMOUNT: 500, MAX_AMOUNT: 5000000,
+  STALE_HOURS: 72,         // submissions older than this get flagged
+  VELOCITY_LIMIT: 3,       // submissions per payer per 24h before flagging
+  AUTO_APPROVE_SCORE: 85
+};
+
+/* ============ DATA LAYER (swap bodies for Supabase later) ============ */
+// TODO SUPABASE: const sb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+const DB = {
+  async list() {
+    // TODO SUPABASE:
+    // const { data, error } = await sb.from('payments').select('*').order('created_at', { ascending: false });
+    // if (error) throw error; return data;
+    return local.load();
+  },
+  async update(id, patch) {
+    // TODO SUPABASE: call an RPC or edge function (e.g. sb.rpc('review_payment', { p_id: id, p_status, p_notes }))
+    // that checks the caller is an admin, that status is still 'pending', and grants the entitlement.
+    // Do not rely on this page's checks alone.
+    return local.patch(id, patch);
+  },
+  async screenshotUrl(p) {
+    // TODO SUPABASE: const { data } = await sb.storage.from('payment-screenshots').createSignedUrl(p.screenshot_path, 300); return data.signedUrl;
+    return p.screenshot_url;
+  }
+};
+
+/* ---- local fallback store (used only until Supabase is connected) ---- */
+const LS = 'billan_payments_v1';
+let mem = null;
+const local = {
+  load() {
+    if (mem) return mem;
+    try { const r = JSON.parse(localStorage.getItem(LS)); if (r) return (mem = r); } catch (e) {}
+    mem = seed(); local.save(); return mem;
+  },
+  save() { try { localStorage.setItem(LS, JSON.stringify(mem)); } catch (e) {} },
+  patch(id, patch) { const p = local.load().find(x => x.id === id); if (!p) throw new Error('Payment not found'); Object.assign(p, patch); local.save(); return p; }
+};
+function seed() {
+  const now = Date.now(), iso = ms => new Date(ms).toISOString();
+  const stamp = ms => { const d = new Date(ms), z = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`; };
+  const t1 = now - 3600e3;
+  return [
+    { id: 'pay_001', created_at: iso(t1), user_id: 'user_1', school_id: 'sch_001', school_name: 'Bright Future School', amount: 150000, currency: 'RWF', method: 'mobile_money', mobile_network: 'MTN', mobile_number: '250788123456', transaction_id: '48213907561', screenshot_url: ph('Screenshot 1'), status: 'pending', notes: '',
+      sms_text: `You have received 150000 RWF from John Doe (250788123456) at ${stamp(t1 - 300e3)}. Financial Transaction Id: 48213907561. Your new balance: 310000 RWF.` },
+    { id: 'pay_002', created_at: iso(now - 86400e3), user_id: 'user_2', school_id: 'sch_002', school_name: 'St Mary High', amount: 200000, currency: 'RWF', method: 'bank_transfer', mobile_network: 'Bank of Kigali', mobile_number: '250788652314', transaction_id: 'BTX-20261012', screenshot_url: ph('Screenshot 2'), status: 'pending', notes: '', sms_text: '' },
+    { id: 'pay_003', created_at: iso(now - 1800e3), user_id: 'user_3', school_id: 'sch_003', school_name: 'Hill View Academy', amount: 150000, currency: 'RWF', method: 'mobile_money', mobile_network: 'MTN', mobile_number: '250791998877', transaction_id: '48213907561', screenshot_url: ph('Screenshot 3'), status: 'pending', notes: '', sms_text: '' }
+  ];
+}
+
+/* ============ HELPERS ============ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt = (a, c) => new Intl.NumberFormat('en-US').format(a) + ' ' + (c || 'RWF');
+function ph(t) { return 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="420" height="300"><rect width="100%" height="100%" fill="#0f1720"/><text x="50%" y="50%" fill="#94a3b8" font-family="sans-serif" font-size="20" text-anchor="middle">${t}</text></svg>`); }
+const safeUrl = u => /^(https:\/\/|data:image\/)/.test(u || '') ? u : ph('Image unavailable');
+
+/* ============ VERIFICATION ENGINE (pure rules, no ML) ============ */
+const provider = p => /mtn/i.test(p.mobile_network) ? 'mtn' : /airtel/i.test(p.mobile_network) ? 'airtel' : 'bank';
+const TXID = { mtn: /^\d{8,12}$/, airtel: /^[A-Z0-9.\-]{8,24}$/i, bank: /^[A-Z0-9\-]{6,30}$/i };
+const PREFIX = { mtn: ['8', '9'], airtel: ['2', '3'] };   // after 2507
+const normPhone = s => { let d = String(s || '').replace(/\D/g, ''); if (d.length === 10 && d[0] === '0') d = '250' + d.slice(1); else if (d.length === 9) d = '250' + d; return d; };
+const validPhone = d => /^2507[2389]\d{7}$/.test(d);
+
+function parseSms(t) {
+  if (!t || !t.trim()) return null;
+  const out = { phones: [] };
+  const am = t.match(/(\d[\d,]*(?:\.\d+)?)\s*(?:RWF|FRW)/i) || t.match(/(?:RWF|FRW)\s*(\d[\d,]*(?:\.\d+)?)/i);
+  if (am) out.amount = Math.round(parseFloat(am[1].replace(/,/g, '')));
+  const tx = t.match(/(?:Financial\s*Transaction\s*Id|Transaction\s*(?:Id|ID|No)|TxId|TID|Ref(?:erence)?(?:\s*No)?)\s*[:#.]?\s*([A-Z0-9][A-Z0-9.\-]{5,})/i);
+  if (tx) out.txid = tx[1].replace(/[.\-]+$/, '');
+  out.phones = (t.match(/(?<!\d)(?:\+?250|0)?7[2389]\d{7}(?!\d)/g) || []).map(normPhone).filter(validPhone);
+  let m = t.match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  if (m) out.date = new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5]);
+  else if ((m = t.match(/(\d{2})\/(\d{2})\/(\d{4})[ ,]+(\d{2}):(\d{2})/))) out.date = new Date(+m[3], m[2] - 1, +m[1], +m[4], +m[5]);
+  return out;
+}
+
+function analyze(p, all) {
+  const R = [];
+  const add = (id, label, weight, status, detail, hard) => R.push({ id, label, weight, status, detail, hard: !!hard && status === 'fail' });
+  const prov = provider(p), amt = Number(p.amount), payer = normPhone(p.mobile_number), tx = String(p.transaction_id || '').trim();
+  const others = all.filter(x => x.id !== p.id), created = new Date(p.created_at).getTime();
+
+  // 1 amount sanity
+  if (!isFinite(amt) || amt <= 0) add('amt', 'Amount', 15, 'fail', 'Amount is missing or not a positive number.', true);
+  else if (amt < CONFIG.MIN_AMOUNT || amt > CONFIG.MAX_AMOUNT) add('amt', 'Amount', 15, 'fail', `${fmt(amt)} is outside ${fmt(CONFIG.MIN_AMOUNT)} – ${fmt(CONFIG.MAX_AMOUNT)}.`);
+  else add('amt', 'Amount', 15, 'pass', `${fmt(amt)} is within the allowed range.`);
+
+  // 2 expected plan price
+  add('plan', 'Matches a plan price', 10, CONFIG.PLANS.includes(amt) ? 'pass' : 'warn', CONFIG.PLANS.includes(amt) ? 'Equals a known plan price.' : `${fmt(amt)} does not equal any plan price (${CONFIG.PLANS.map(x => fmt(x)).join(', ')}). Could be a part-payment or a typo.`);
+
+  // 3 TX id format for the provider
+  add('fmt', 'Transaction ID format', 15, TXID[prov].test(tx) ? 'pass' : 'warn', TXID[prov].test(tx) ? `Looks like a valid ${prov.toUpperCase()} reference.` : `"${tx || 'empty'}" does not look like a typical ${prov === 'bank' ? 'bank' : prov.toUpperCase()} reference.`);
+
+  // 4 duplicate TX id
+  const dup = tx ? others.filter(x => String(x.transaction_id || '').trim().toLowerCase() === tx.toLowerCase()) : [];
+  add('dup', 'Transaction ID is unique', 40, dup.length ? 'fail' : 'pass', dup.length ? `Same ID already used on ${dup.map(d => d.id + ' (' + d.status + ')').join(', ')}. A transaction can only pay once.` : 'No other submission uses this ID.', true);
+
+  // 5 phone validity (+ payer is not our own number)
+  if (CONFIG.BUSINESS_NUMBERS.includes(payer)) add('phone', 'Payer number', 10, 'fail', 'Payer number is one of your own receiving numbers.', true);
+  else if (prov !== 'bank' || p.mobile_number) add('phone', 'Payer number', 10, validPhone(payer) ? 'pass' : 'warn', validPhone(payer) ? 'Valid Rwandan mobile number.' : `"${p.mobile_number}" is not a valid Rwandan mobile number.`);
+
+  // 6 network prefix matches provider (mobile money only)
+  if (prov !== 'bank' && validPhone(payer)) {
+    const ok = PREFIX[prov].includes(payer[4]);
+    add('net', 'Number matches network', 10, ok ? 'pass' : 'warn', ok ? `Prefix belongs to ${prov.toUpperCase()}.` : `Number prefix is not a ${prov.toUpperCase()} range.`);
+  }
+
+  // 7 timing
+  const ageH = (Date.now() - created) / 36e5;
+  if (ageH < -0.1) add('time', 'Submission time', 20, 'fail', 'Submission is dated in the future.', true);
+  else if (ageH > CONFIG.STALE_HOURS) add('time', 'Submission time', 20, 'warn', `Waiting ${Math.round(ageH)}h. Older than ${CONFIG.STALE_HOURS}h, check it is not a recycled receipt.`);
+  else add('time', 'Submission time', 20, 'pass', 'Recent submission.');
+
+  // 8 velocity / split-payment pattern
+  const day = others.filter(x => normPhone(x.mobile_number) === payer && Math.abs(new Date(x.created_at) - created) < 864e5);
+  const quick = day.filter(x => Number(x.amount) === amt && String(x.transaction_id).toLowerCase() !== tx.toLowerCase() && Math.abs(new Date(x.created_at) - created) < 1800e3);
+  if (day.length + 1 >= CONFIG.VELOCITY_LIMIT) add('vel', 'Submission pattern', 15, 'warn', `Payer submitted ${day.length + 1} payments within 24h.`);
+  else if (quick.length) add('vel', 'Submission pattern', 15, 'warn', 'Same payer sent the same amount with a different ID within 30 minutes.');
+  else add('vel', 'Submission pattern', 15, 'pass', 'No unusual repeat activity from this payer.');
+
+  // 9 payer history
+  const rej = others.filter(x => normPhone(x.mobile_number) === payer && x.status === 'rejected').length;
+  add('hist', 'Payer history', 10, rej >= 2 ? 'warn' : 'pass', rej >= 2 ? `${rej} earlier payments from this number were rejected.` : 'No repeated rejections.');
+
+  // 10 SMS cross-check (the only independent proof)
+  const s = parseSms(p.sms_text);
+  if (!s) add('sms', 'Independent proof (SMS)', 30, 'warn', 'No confirmation SMS pasted. Nothing independent backs this payment, so it cannot be marked as valid automatically.');
+  else {
+    const bad = [], soft = [];
+    if (s.amount == null) soft.push('amount not found in SMS'); else if (s.amount !== amt) bad.push(`SMS amount ${fmt(s.amount)} differs from submitted ${fmt(amt)}`);
+    if (!s.txid) soft.push('transaction ID not found in SMS'); else if (s.txid.toLowerCase() !== tx.toLowerCase()) bad.push(`SMS transaction ID ${s.txid} differs from submitted ${tx}`);
+    if (s.phones.length && !s.phones.includes(payer)) soft.push('payer number is not in the SMS');
+    if (s.date) { const d = (created - s.date) / 36e5; if (d < -0.17) soft.push('SMS time is after the submission time'); else if (d > 48) soft.push('SMS is more than 48h older than the submission'); }
+    const st = bad.length ? 'fail' : soft.length ? 'warn' : 'pass';
+    add('sms', 'Independent proof (SMS)', 30, st, st === 'pass' ? 'SMS matches amount, transaction ID and payer.' : [...bad, ...soft].join('; ') + '.', true);
+  }
+
+  let pen = 0; R.forEach(r => { pen += r.status === 'fail' ? r.weight : r.status === 'warn' ? r.weight / 2 : 0; });
+  const score = Math.max(0, Math.round(100 - pen));
+  const hard = R.some(r => r.hard);
+  const proven = R.find(r => r.id === 'sms').status === 'pass';
+  const verdict = hard ? 'reject' : (score >= CONFIG.AUTO_APPROVE_SCORE && proven) ? 'approve' : 'review';
+  const order = { fail: 0, warn: 1, pass: 2 };
+  R.sort((a, b) => order[a.status] - order[b.status]);
+  return { rules: R, score, verdict };
+}
+
+/* ============ UI ============ */
+const VL = { approve: 'Looks valid', review: 'Needs review', reject: 'Likely invalid' };
+const ICON = { pass: '✓', warn: '!', fail: '✕' };
+let payments = [], filtered = [], current = null;
+const open = new Set();
+const checksHtml = a => `<ul class="checks">${a.rules.map(r => `<li class="${r.status}"><b>${ICON[r.status]} ${esc(r.label)}</b><span>${esc(r.detail)}</span></li>`).join('')}</ul>`;
+
+function rowHtml(p) {
+  const a = p._ai, isOpen = open.has(p.id);
+  return `<div class="req-row">
+    <button class="req-main" data-toggle="${esc(p.id)}" aria-expanded="${isOpen}">
+      <div class="meta">
+        <div><div class="amount">${esc(fmt(p.amount, p.currency))}</div><div class="sub">${esc(p.method)} • ${esc(p.mobile_network)} • ${esc(p.transaction_id)}</div></div>
+        <div class="sub">School: <strong>${esc(p.school_name)}</strong><br>Payer: ${esc(p.mobile_number)} • ${esc(new Date(p.created_at).toLocaleString())}</div>
+      </div>
+      <div class="right"><span class="chip ${a.verdict}">${VL[a.verdict]} · ${a.score}</span><span class="badge ${esc(p.status)}">${esc(p.status)}</span></div>
+    </button>
+    <div class="detail ${isOpen ? 'open' : ''}">
+      ${checksHtml(a)}
+      <img class="screenshot" src="${esc(safeUrl(p.screenshot_url))}" alt="Payment screenshot" loading="lazy">
+      <div class="actions">
+        ${p.status === 'pending' ? `<button class="btn primary" data-verify="${esc(p.id)}">Review payment</button>` : ''}
+        <a class="btn ghost" href="${esc(safeUrl(p.screenshot_url))}" target="_blank" rel="noopener">View full</a>
+      </div>
+    </div></div>`;
+}
+
+function render() {
+  payments.forEach(p => { p._ai = analyze(p, payments); });
+  const q = $('#q').value.toLowerCase().trim(), s = $('#statusFilter').value, v = $('#verdictFilter').value;
+  filtered = payments.filter(p => {
+    if (s && p.status !== s) return false;
+    if (v && p._ai.verdict !== v) return false;
+    return !q || [p.transaction_id, p.mobile_number, p.school_name].some(x => String(x || '').toLowerCase().includes(q));
+  });
+  $('#paymentsList').innerHTML = filtered.map(rowHtml).join('');
+  $('#empty').style.display = filtered.length ? 'none' : 'block';
+  const pend = payments.filter(p => p.status === 'pending');
+  const okTotal = payments.filter(p => p.status === 'approved').reduce((t, p) => t + Number(p.amount || 0), 0);
+  $('#stats').innerHTML = [
+    ['Pending', pend.length], ['Look valid', pend.filter(p => p._ai.verdict === 'approve').length],
+    ['Need review', pend.filter(p => p._ai.verdict === 'review').length], ['Likely invalid', pend.filter(p => p._ai.verdict === 'reject').length],
+    ['Approved total', fmt(okTotal)]
+  ].map(([l, n]) => `<div class="card stat"><b>${esc(n)}</b><span>${l}</span></div>`).join('');
+  $('#bulkBtn').disabled = !pend.some(p => p._ai.verdict === 'approve');
+}
+
+async function load(quiet) {
+  try { payments = await DB.list(); render(); if (!quiet) toast('Payments refreshed', 'info'); }
+  catch (e) { toast('Could not load payments: ' + e.message, 'error'); }
+}
+
+/* ---- modal ---- */
+const modalBg = $('#modal');
+function refreshModal() {
+  const live = analyze({ ...current, sms_text: $('#mSms').value }, payments);
+  current._live = live;
+  $('#mVerdict').innerHTML = `<span class="chip ${live.verdict}">${VL[live.verdict]} · ${live.score}</span>`;
+  $('#mChecks').innerHTML = live.rules.map(r => `<li class="${r.status}"><b>${ICON[r.status]} ${esc(r.label)}</b><span>${esc(r.detail)}</span></li>`).join('');
+}
+async function openModal(id) {
+  const p = payments.find(x => x.id === id); if (!p) return;
+  current = p;
+  $('#mSchool').textContent = p.school_name; $('#mAmount').textContent = fmt(p.amount, p.currency);
+  $('#mTx').textContent = p.transaction_id; $('#mPayer').textContent = p.mobile_number + ' • ' + p.mobile_network;
+  $('#mNotes').value = p.notes || ''; $('#mSms').value = p.sms_text || '';
+  let url = p.screenshot_url; try { url = await DB.screenshotUrl(p); } catch (e) {}
+  $('#mImg').src = safeUrl(url);
+  const pend = p.status === 'pending';
+  $('#approveBtn').disabled = !pend; $('#rejectBtn').disabled = !pend;
+  refreshModal(); modalBg.style.display = 'flex'; $('#mSms').focus();
+}
+function closeModal() { modalBg.style.display = 'none'; current = null; }
+
+async function decide(status) {
+  if (!current || current.status !== 'pending') return;
+  const notes = $('#mNotes').value.trim();
+  if (status === 'rejected' && !notes) return toast('Add a note explaining the rejection.', 'error');
+  if (status === 'approved' && current._live.verdict === 'reject' && !confirm('The engine found a hard failure on this payment. Approve anyway?')) return;
+  try {
+    await DB.update(current.id, { status, notes, sms_text: $('#mSms').value.trim(), reviewed_at: new Date().toISOString() });
+    closeModal(); await load(true); toast(status === 'approved' ? 'Payment approved.' : 'Payment rejected.', status === 'approved' ? 'success' : 'info');
+  } catch (e) { toast('Could not save: ' + e.message, 'error'); }
+}
+
+async function bulkApprove() {
+  const list = payments.filter(p => p.status === 'pending' && p._ai.verdict === 'approve');
+  if (!list.length || !confirm(`Approve ${list.length} payment(s) that match their confirmation SMS?`)) return;
+  let done = 0;
+  for (const p of list) { try { await DB.update(p.id, { status: 'approved', notes: 'Auto-verified: SMS matched', reviewed_at: new Date().toISOString() }); done++; } catch (e) {} }
+  await load(true); toast(`${done} of ${list.length} approved.`, done === list.length ? 'success' : 'error');
+}
+
+/* ---- events ---- */
+$('#paymentsList').addEventListener('click', e => {
+  const v = e.target.closest('[data-verify]'); if (v) return openModal(v.dataset.verify);
+  const t = e.target.closest('[data-toggle]'); if (!t) return;
+  const id = t.dataset.toggle; open.has(id) ? open.delete(id) : open.add(id); render();
+});
+['q'].forEach(i => $('#' + i).addEventListener('input', render));
+['statusFilter', 'verdictFilter'].forEach(i => $('#' + i).addEventListener('change', render));
+$('#refreshBtn').addEventListener('click', () => load());
+$('#bulkBtn').addEventListener('click', bulkApprove);
+$('#mSms').addEventListener('input', refreshModal);
+$('#modalClose').addEventListener('click', closeModal);
+$('#approveBtn').addEventListener('click', () => decide('approved'));
+$('#rejectBtn').addEventListener('click', () => decide('rejected'));
+modalBg.addEventListener('click', e => { if (e.target === modalBg) closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && modalBg.style.display === 'flex') closeModal(); });
+
+function toast(msg, type) {
+  const d = document.createElement('div'); d.textContent = msg; d.setAttribute('role', 'status');
+  Object.assign(d.style, { position: 'fixed', right: '18px', bottom: '18px', padding: '10px 14px', borderRadius: '8px', color: '#fff', zIndex: 9,
+    background: type === 'success' ? '#14532d' : type === 'error' ? '#7f1d1d' : '#1e3a5f' });
+  document.body.appendChild(d); setTimeout(() => d.remove(), 3500);
+}
+
+$('#srcNote').textContent = CONFIG.SUPABASE_URL ? '' : 'Using the local demo store in this browser. Connect Supabase in the DB object to use live payments.';
+load(true);
+</script>
+</body>
+</html>
