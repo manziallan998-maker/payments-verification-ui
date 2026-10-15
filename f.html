@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Payments Verification — Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#071226;--card:#0e1b2a;--muted:#98a6b3;--accent:#e2b45c;--success:#22c55e;--danger:#ef4444}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:#e6eef6}
+    .container{max-width:1100px;margin:28px auto;padding:20px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#ffd98a);display:flex;align-items:center;justify-content:center;color:#071226;font-weight:800}
+    h1{font-size:18px;margin:0}
+    .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .input,.select{padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:transparent;color:#e6eef6;font-family:inherit}
+    .select option{background:#0e1b2a}
+    .card{background:var(--card);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,.03)}
+    .filters{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+    .payments{display:grid;gap:10px}
+    .payment-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.04);background:linear-gradient(180deg,rgba(255,255,255,.01),transparent)}
+    .p-meta{display:flex;flex-direction:column;gap:2px}
+    .amount{font-weight:700;font-size:16px}
+    .muted{color:var(--muted);font-size:13px}
+    .badge{padding:6px 10px;border-radius:999px;font-weight:700;font-size:12px;text-transform:capitalize}
+    .badge-pending{background:rgba(245,158,11,.12);color:var(--accent)}
+    .badge-approved{background:rgba(34,197,94,.12);color:var(--success)}
+    .badge-rejected{background:rgba(239,68,68,.12);color:var(--danger)}
+    .actions{display:flex;gap:8px}
+    .right{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+    .btn{padding:8px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:700;font-family:inherit}
+    .btn:disabled{opacity:.4;cursor:not-allowed}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,.08);color:var(--muted)}
+    .btn.primary{background:var(--accent);color:#071226}
+    .btn.success{background:var(--success);color:#04260f}
+    .btn.danger{background:var(--danger);color:#fff}
+    .screenshot{max-width:100%;border-radius:8px;border:1px solid rgba(255,255,255,.06);display:block;background:#071226;min-height:120px}
+    .backdrop{position:fixed;inset:0;background:rgba(2,6,23,.7);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
+    .modal{background:var(--card);width:100%;max-width:900px;border-radius:12px;padding:18px;border:1px solid rgba(255,255,255,.05);max-height:90vh;overflow:auto}
+    .grid2{display:grid;grid-template-columns:1fr 380px;gap:16px}
+    .notes{width:100%;min-height:90px;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:transparent;color:#e6eef6;font-family:inherit}
+    .small{font-size:13px;color:var(--muted)}
+    .login{max-width:380px;margin:60px auto;display:grid;gap:12px}
+    .login .input{width:100%}
+    .err{color:var(--danger);font-size:13px;min-height:18px}
+    footer{margin-top:18px;text-align:center;color:var(--muted);font-size:13px}
+    .hidden{display:none!important}
+    @media(max-width:900px){.grid2{grid-template-columns:1fr}.payment-row{flex-direction:column;align-items:flex-start}.right{align-items:flex-start}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="logo">B</div>
+        <div>
+          <h1>Payments Verification — Admin</h1>
+          <div class="small">Manual mobile-money and bank transfer verification</div>
+        </div>
+      </div>
+      <div class="controls hidden" id="toolbar">
+        <input id="search" class="input" placeholder="Search TX, phone, school...">
+        <select id="status" class="select">
+          <option value="">All</option><option value="pending">Pending</option>
+          <option value="approved">Approved</option><option value="rejected">Rejected</option>
+        </select>
+        <button id="refresh" class="btn ghost">Refresh</button>
+        <button id="logout" class="btn ghost">Sign out</button>
+      </div>
+    </header>
+
+    <!-- Login -->
+    <section id="loginView" class="card login">
+      <strong>Admin sign in</strong>
+      <input id="email" class="input" type="email" placeholder="Admin email" autocomplete="username">
+      <input id="password" class="input" type="password" placeholder="Password" autocomplete="current-password">
+      <button id="loginBtn" class="btn primary">Sign in</button>
+      <div id="loginErr" class="err"></div>
+    </section>
+
+    <!-- Dashboard -->
+    <main id="dashView" class="card hidden">
+      <div class="filters"><div class="small">Showing <span id="count">0</span> payments</div></div>
+      <div id="list" class="payments"></div>
+      <div id="empty" class="small" style="text-align:center;padding:18px;display:none">No payments found.</div>
+    </main>
+
+    <footer>Built for Billan · Connected to Supabase</footer>
+  </div>
+
+  <!-- Modal -->
+  <div id="modalBackdrop" class="backdrop" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="grid2">
+        <div>
+          <h3 id="mSchool" style="margin-top:0">School</h3>
+          <div style="margin-bottom:12px"><strong id="mAmount"></strong> <span class="small" id="mDate"></span></div>
+          <div style="margin-bottom:6px"><strong>Transaction</strong><div class="small" id="mTx"></div></div>
+          <div style="margin-bottom:6px"><strong>Payer</strong><div class="small" id="mPayer"></div></div>
+          <div style="margin-top:12px">
+            <label class="small">Admin verification notes</label>
+            <textarea id="mNotes" class="notes" placeholder="Add notes for audit & record..."></textarea>
+          </div>
+          <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+            <button id="modalClose" class="btn ghost">Close</button>
+            <button id="modalReject" class="btn danger">Reject</button>
+            <button id="modalApprove" class="btn success">Approve</button>
+          </div>
+        </div>
+        <div>
+          <label class="small">Screenshot</label>
+          <img id="mImg" class="screenshot" alt="Payment screenshot">
+          <div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end">
+            <button id="downloadBtn" class="btn ghost">Open full size</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (() => {
+    // ---------- Supabase config ----------
+    const SB_URL = 'https://nzauptxxvccnpvezzdyu.supabase.co';
+    const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56YXVwdHh4dmNjbnB2ZXp6ZHl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3Mjg1ODcsImV4cCI6MjA5ODMwNDU4N30.M7XLTeOIH8o7XV_J1Yrr5V6uQ4WjaT3mf8by5HsPT_g';
+    const BUCKET = 'payment-screenshots';
+
+    // ---------- Session ----------
+    let session = null;
+    try { session = JSON.parse(sessionStorage.getItem('sb_session') || 'null'); } catch (e) {}
+    function saveSession(s) {
+      session = s;
+      try { s ? sessionStorage.setItem('sb_session', JSON.stringify(s)) : sessionStorage.removeItem('sb_session'); } catch (e) {}
+    }
+
+    async function authRequest(grant, body) {
+      const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=${grant}`, {
+        method: 'POST',
+        headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error_description || j.msg || j.message || 'Sign in failed');
+      return { access_token: j.access_token, refresh_token: j.refresh_token, user: j.user };
+    }
+
+    async function refreshSession() {
+      if (!session || !session.refresh_token) throw new Error('Session expired');
+      saveSession(await authRequest('refresh_token', { refresh_token: session.refresh_token }));
+    }
+
+    // fetch wrapper: adds headers, retries once after refreshing an expired token
+    async function api(path, opts = {}, retry = true) {
+      const headers = Object.assign({
+        apikey: SB_KEY,
+        Authorization: 'Bearer ' + (session ? session.access_token : SB_KEY),
+        'Content-Type': 'application/json'
+      }, opts.headers || {});
+      const res = await fetch(SB_URL + path, Object.assign({}, opts, { headers }));
+      if (res.status === 401 && retry && session) {
+        try { await refreshSession(); return api(path, opts, false); }
+        catch (e) { doLogout(); throw new Error('Session expired, please sign in again'); }
+      }
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.message || j.error || ('Request failed (' + res.status + ')'));
+      }
+      return res.status === 204 ? null : res.json();
+    }
+
+    // ---------- UI helpers ----------
+    const $ = id => document.getElementById(id);
+    function toast(msg, type = 'info') {
+      const d = document.createElement('div');
+      d.textContent = msg;
+      Object.assign(d.style, {
+        position: 'fixed', right: '18px', bottom: '18px', color: '#fff', padding: '10px 14px',
+        borderRadius: '8px', zIndex: 9999, transition: 'opacity .3s',
+        background: type === 'success' ? '#14532d' : type === 'error' ? '#7f1d1d' : '#1e3a5f'
+      });
+      document.body.appendChild(d);
+      setTimeout(() => { d.style.opacity = '0'; setTimeout(() => d.remove(), 300); }, 3200);
+    }
+    function formatAmount(a, c = 'RWF') { return new Intl.NumberFormat('en-US').format(a) + ' ' + c; }
+    function placeholder(text) {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420"><rect width="100%" height="100%" fill="#0e1b2a"/><text x="50%" y="50%" fill="#98a6b3" font-family="Arial" font-size="20" dominant-baseline="middle" text-anchor="middle">${text}</text></svg>`;
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    }
+
+    // ---------- Data ----------
+    let payments = [];
+    let filtered = [];
+    let current = null;
+    let currentShotUrl = null;
+
+    async function loadPayments(showToast = false) {
+      try {
+        payments = await api('/rest/v1/payments?select=*&order=created_at.desc&limit=500');
+        applyFilter();
+        if (showToast) toast('Payments refreshed', 'success');
+      } catch (e) { toast('Load failed: ' + e.message, 'error'); }
+    }
+
+    function applyFilter() {
+      const q = $('search').value.trim().toLowerCase();
+      const s = $('status').value;
+      filtered = payments.filter(p => {
+        if (s && p.status !== s) return false;
+        if (!q) return true;
+        return [p.transaction_id, p.mobile_number, p.school_name, p.school_id]
+          .some(v => (v || '').toLowerCase().includes(q));
+      });
+      render();
+    }
+
+    function render() {
+      const list = $('list');
+      list.innerHTML = '';
+      $('count').textContent = filtered.length;
+      $('empty').style.display = filtered.length ? 'none' : 'block';
+
+      filtered.forEach(p => {
+        const row = document.createElement('div'); row.className = 'payment-row';
+        const meta = document.createElement('div'); meta.className = 'p-meta';
+
+        const amount = document.createElement('div'); amount.className = 'amount';
+        amount.textContent = formatAmount(p.amount, p.currency);
+        const info = document.createElement('div'); info.className = 'muted';
+        info.textContent = [p.method, p.mobile_network, p.transaction_id].filter(Boolean).join(' • ');
+        const school = document.createElement('div'); school.className = 'muted';
+        school.textContent = 'School: ' + (p.school_name || p.school_id);
+        const payer = document.createElement('div'); payer.className = 'muted';
+        payer.textContent = 'Payer: ' + (p.mobile_number || '—') + ' • ' + new Date(p.created_at).toLocaleString();
+        meta.append(amount, info, school, payer);
+
+        const right = document.createElement('div'); right.className = 'right';
+        const badge = document.createElement('div');
+        badge.className = 'badge badge-' + (['approved', 'rejected'].includes(p.status) ? p.status : 'pending');
+        badge.textContent = p.status;
+
+        const actions = document.createElement('div'); actions.className = 'actions';
+        const view = document.createElement('button'); view.className = 'btn ghost'; view.textContent = 'View';
+        view.onclick = () => openModal(p.id);
+        const verify = document.createElement('button'); verify.className = 'btn primary'; verify.textContent = 'Verify';
+        verify.disabled = p.status !== 'pending';
+        verify.onclick = () => openModal(p.id);
+        actions.append(view, verify);
+
+        right.append(badge, actions);
+        row.append(meta, right);
+        list.appendChild(row);
+      });
+    }
+
+    // ---------- Modal ----------
+    async function openModal(id) {
+      current = payments.find(x => x.id === id);
+      if (!current) return;
+      $('mSchool').textContent = current.school_name || current.school_id;
+      $('mAmount').textContent = formatAmount(current.amount, current.currency);
+      $('mDate').textContent = new Date(current.created_at).toLocaleString();
+      $('mTx').textContent = current.transaction_id || '—';
+      $('mPayer').textContent = (current.mobile_number || '—') + ' • ' + (current.mobile_network || '');
+      $('mNotes').value = current.notes || '';
+      $('modalApprove').disabled = $('modalReject').disabled = current.status !== 'pending';
+      $('modalBackdrop').style.display = 'flex';
+
+      currentShotUrl = null;
+      $('mImg').src = placeholder(current.screenshot_path ? 'Loading...' : 'No image');
+      if (current.screenshot_path) {
+        const forId = current.id;
+        try {
+          const path = current.screenshot_path.split('/').map(encodeURIComponent).join('/');
+          const j = await api(`/storage/v1/object/sign/${BUCKET}/${path}`, {
+            method: 'POST', body: JSON.stringify({ expiresIn: 300 })
+          });
+          if (current && current.id === forId) {
+            currentShotUrl = SB_URL + '/storage/v1' + j.signedURL;
+            $('mImg').src = currentShotUrl;
+          }
+        } catch (e) { $('mImg').src = placeholder('Could not load image'); }
+      }
+    }
+
+    function closeModal() { $('modalBackdrop').style.display = 'none'; current = null; currentShotUrl = null; }
+
+    async function review(status) {
+      if (!current) return;
+      const btns = [$('modalApprove'), $('modalReject')];
+      btns.forEach(b => b.disabled = true);
+      try {
+        await api('/rest/v1/rpc/review_payment', {
+          method: 'POST',
+          body: JSON.stringify({ p_id: current.id, p_status: status, p_notes: $('mNotes').value || '' })
+        });
+        toast(status === 'approved' ? 'Payment approved — entitlement created' : 'Payment rejected',
+              status === 'approved' ? 'success' : 'info');
+        closeModal();
+        await loadPayments();
+      } catch (e) {
+        toast(status + ' failed: ' + e.message, 'error');
+        btns.forEach(b => b.disabled = false);
+      }
+    }
+
+    // ---------- Auth flow ----------
+    async function showDashboard() {
+      // confirm this user is an admin
+      try {
+        const rows = await api('/rest/v1/admins?select=user_id&user_id=eq.' + encodeURIComponent(session.user.id));
+        if (!rows.length) { $('loginErr').textContent = 'This account is not an admin.'; doLogout(true); return; }
+      } catch (e) { $('loginErr').textContent = e.message; doLogout(true); return; }
+      $('loginView').classList.add('hidden');
+      $('dashView').classList.remove('hidden');
+      $('toolbar').classList.remove('hidden');
+      loadPayments();
+    }
+
+    function doLogout(keepError) {
+      saveSession(null);
+      payments = []; filtered = []; render();
+      $('dashView').classList.add('hidden');
+      $('toolbar').classList.add('hidden');
+      $('loginView').classList.remove('hidden');
+      if (!keepError) $('loginErr').textContent = '';
+    }
+
+    async function doLogin() {
+      $('loginErr').textContent = '';
+      const btn = $('loginBtn'); btn.disabled = true; btn.textContent = 'Signing in...';
+      try {
+        saveSession(await authRequest('password', { email: $('email').value.trim(), password: $('password').value }));
+        $('password').value = '';
+        await showDashboard();
+      } catch (e) { $('loginErr').textContent = e.message; }
+      btn.disabled = false; btn.textContent = 'Sign in';
+    }
+
+    // ---------- Events ----------
+    $('loginBtn').onclick = doLogin;
+    $('password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+    $('logout').onclick = () => doLogout();
+    $('refresh').onclick = () => loadPayments(true);
+    $('search').addEventListener('input', applyFilter);
+    $('status').addEventListener('change', applyFilter);
+    $('modalClose').onclick = closeModal;
+    $('modalApprove').onclick = () => review('approved');
+    $('modalReject').onclick = () => review('rejected');
+    $('downloadBtn').onclick = () => currentShotUrl ? window.open(currentShotUrl, '_blank') : toast('No screenshot available', 'error');
+    $('modalBackdrop').addEventListener('click', e => { if (e.target === $('modalBackdrop')) closeModal(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+    // ---------- Start ----------
+    if (session && session.access_token) showDashboard();
+  })();
+  </script>
+</body>
+</html>
