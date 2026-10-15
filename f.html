@@ -310,7 +310,7 @@
     async function showDashboard() {
       // confirm this user is an admin
       try {
-        const rows = await api('/rest/v1/admins?select=user_id&user_id=eq.' + encodeURIComponent(session.user.id));
+        const rows = await api('/rest/v1/payment_admins?select=user_id&user_id=eq.' + encodeURIComponent(session.user.id));
         if (!rows.length) { $('loginErr').textContent = 'This account is not an admin.'; doLogout(true); return; }
       } catch (e) { $('loginErr').textContent = e.message; doLogout(true); return; }
       $('loginView').classList.add('hidden');
