@@ -3,160 +3,201 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Payments Verification UI — Billan (Mock)</title>
+  <title>Payments Verification — Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
   <style>
-    :root{--bg:#0b1120;--card:#111827;--muted:#94a3b8;--accent:#d4a843;--success:#22c55e;--danger:#ef4444}
+    :root{--bg:#071226;--card:#0e1b2a;--muted:#98a6b3;--accent:#e2b45c;--success:#22c55e;--danger:#ef4444}
     *{box-sizing:border-box}
     body{margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:#e6eef6}
-    .wrap{max-width:1100px;margin:32px auto;padding:20px}
-    .hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
-    .title{font-size:20px;font-weight:700}
-    .card{background:var(--card);border-radius:10px;padding:16px;border:1px solid #192229}
-    .controls{display:flex;gap:8px;align-items:center}
-    .search{padding:8px 12px;border-radius:8px;border:1px solid #1f2b33;background:#0f1720;color:var(--muted)}
-    .select{padding:8px 12px;border-radius:8px;border:1px solid #1f2b33;background:#0f1720;color:var(--muted)}
-    .payments-list{margin-top:12px}
-    .req-row{border-bottom:1px solid rgba(255,255,255,.04);padding:12px 0}
-    .req-main{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer}
-    .meta{display:flex;gap:12px;align-items:center}
-    .amount{font-weight:800;font-size:16px}
-    .sub{color:var(--muted);font-size:13px}
+    .container{max-width:1100px;margin:28px auto;padding:20px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#ffd98a);display:flex;align-items:center;justify-content:center;color:#071226;font-weight:800}
+    h1{font-size:18px;margin:0}
+    .controls{display:flex;gap:10px;align-items:center}
+    .input,.select{padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.04);background:transparent;color:var(--muted)}
+    .card{background:var(--card);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,.03)}
+    .filters{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+    .payments{display:grid;gap:10px}
+    .payment-row{display:flex;justify-content:space-between;align-items:center;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.02);background:linear-gradient(180deg,rgba(255,255,255,.01),transparent)}
+    .p-left{display:flex;gap:12px;align-items:center}
+    .p-meta{display:flex;flex-direction:column}
+    .amount{font-weight:700;font-size:16px}
+    .muted{color:var(--muted);font-size:13px}
     .badge{padding:6px 10px;border-radius:999px;font-weight:700}
     .badge.pending{background:rgba(245,158,11,.12);color:var(--accent)}
     .badge.approved{background:rgba(34,197,94,.12);color:var(--success)}
     .badge.rejected{background:rgba(239,68,68,.12);color:var(--danger)}
-    .detail{display:none;padding-top:12px}
-    .detail.open{display:block}
-    .screenshot{max-width:420px;border-radius:8px;border:1px solid #17202a;display:block;margin-top:8px}
-    .actions{margin-top:10px;display:flex;gap:8px}
+    .actions{display:flex;gap:8px}
     .btn{padding:8px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:700}
-    .btn.primary{background:var(--accent);color:#06121a}
-    .btn.ghost{background:transparent;border:1px solid #1f2b33;color:var(--muted)}
-    .btn.success{background:var(--success);color:#052014}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,.04);color:var(--muted)}
+    .btn.primary{background:var(--accent);color:#071226}
+    .btn.success{background:var(--success);color:#04260f}
     .btn.danger{background:var(--danger);color:#fff}
-    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center}
-    .modal{background:var(--card);width:720px;border-radius:10px;padding:16px;border:1px solid #182229}
-    .textarea{width:100%;min-height:90px;padding:10px;border-radius:8px;border:1px solid #1f2b33;background:#0f1720;color:var(--muted)}
-    .footer{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
-    .empty{padding:36px;text-align:center;color:var(--muted)}
+    .detail{display:none;margin-top:8px;padding-top:12px;border-top:1px dashed rgba(255,255,255,.03)}
+    .detail.open{display:block}
+    .screenshot{max-width:360px;border-radius:8px;border:1px solid rgba(255,255,255,.03);display:block}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,.6);display:none;align-items:center;justify-content:center;padding:20px}
+    .modal{background:var(--card);width:100%;max-width:900px;border-radius:12px;padding:18px;border:1px solid rgba(255,255,255,.03)}
+    .grid2{display:grid;grid-template-columns:1fr 380px;gap:16px}
+    .notes{width:100%;min-height:90px;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.03);background:transparent;color:var(--muted)}
+    .small{font-size:13px;color:var(--muted)}
+    footer{margin-top:18px;text-align:center;color:var(--muted);font-size:13px}
+    @media(max-width:900px){.grid2{grid-template-columns:1fr}.screenshot{max-width:100%}}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="hdr">
-      <div class="title">Payments — Manual Verification (Mock)</div>
-      <div class="controls">
-        <input id="q" class="search" placeholder="Search by TX, phone, school...">
-        <select id="statusFilter" class="select">
-          <option value="">All Status</option>
-          <option value="pending">Pending</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
-        </select>
-        <button id="refreshBtn" class="btn ghost">Refresh</button>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="logo">B</div>
+        <div>
+          <h1>Payments Verification — Admin</h1>
+          <div class="small">Manual mobile-money and bank transfer verification dashboard</div>
+        </div>
       </div>
-    </div>
+      <div class="controls">
+        <input id="search" class="input" placeholder="Search TX, phone, school...">
+        <select id="status" class="select"><option value="">All</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select>
+        <button id="refresh" class="btn ghost">Refresh</button>
+        <button id="useBackend" class="btn primary">Connect Backend</button>
+      </div>
+    </header>
 
-    <div class="card">
-      <div id="paymentsList" class="payments-list"></div>
-      <div id="empty" class="empty" style="display:none">No payments found.</div>
-    </div>
+    <main class="card">
+      <div class="filters">
+        <div class="small">Showing <span id="count">0</span> payments</div>
+      </div>
+      <div id="list" class="payments"></div>
+      <div id="empty" class="small" style="text-align:center;padding:18px;display:none">No payments found.</div>
+    </main>
+
+    <footer>Built for Billan · Manual verification workflow — replace mock with Supabase when ready</footer>
   </div>
 
-  <div id="modal" class="modal-bg">
+  <!-- Modal -->
+  <div id="modalBackdrop" class="modal-backdrop">
     <div class="modal">
-      <h3 id="modalTitle">Verify Payment</h3>
-      <div style="display:flex;gap:14px;align-items:flex-start">
-        <div style="flex:1">
-          <div style="margin-bottom:8px"><strong id="mSchool">School</strong></div>
-          <div style="margin-bottom:6px"><strong>Amount:</strong> <span id="mAmount"></span></div>
-          <div style="margin-bottom:6px"><strong>TX:</strong> <span id="mTx"></span></div>
-          <div style="margin-bottom:6px"><strong>Payer:</strong> <span id="mPayer"></span></div>
-          <div style="margin-top:10px"><label>Admin notes</label><textarea id="mNotes" class="textarea" placeholder="Add notes..."></textarea></div>
+      <div class="grid2">
+        <div>
+          <h3 id="mSchool">School</h3>
+          <div style="margin-bottom:12px"><strong id="mAmount">Amount</strong> <span class="small" id="mDate"></span></div>
+          <div style="margin-bottom:6px"><strong>Transaction</strong><div class="small" id="mTx"></div></div>
+          <div style="margin-bottom:6px"><strong>Payer</strong><div class="small" id="mPayer"></div></div>
+          <div style="margin-top:12px"><label class="small">Admin verification notes</label><textarea id="mNotes" class="notes" placeholder="Add notes for audit & record..."></textarea></div>
+          <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+            <button id="modalClose" class="btn ghost">Close</button>
+            <button id="modalReject" class="btn danger">Reject</button>
+            <button id="modalApprove" class="btn success">Approve</button>
+          </div>
         </div>
-        <div style="width:360px">
-          <label>Screenshot</label>
-          <img id="mImg" src="" class="screenshot" alt="screenshot">
+        <div>
+          <label class="small">Screenshot</label>
+          <img id="mImg" class="screenshot" src="" alt="screenshot"/>
+          <div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end">
+            <button id="downloadBtn" class="btn ghost">Download</button>
+          </div>
         </div>
-      </div>
-      <div class="footer">
-        <button class="btn ghost" id="modalClose">Close</button>
-        <button class="btn danger" id="rejectBtn">Reject</button>
-        <button class="btn success" id="approveBtn">Approve</button>
       </div>
     </div>
   </div>
 
   <script>
-    // Mock data
+    // Configuration placeholders - replace when wiring backend
+    const CONFIG = {
+      useBackend: false, // toggle to true when backend available
+      supabaseUrl: '',
+      supabaseAnon: '',
+      apiBase: '' // optional API base for edge functions
+    };
+
+    // Mock dataset (local-only) - replace with backend fetch
     const MOCK = [
-      { id:'pay_001', created_at:new Date().toISOString(), user_id:'user_1', school_id:'sch_001', school_name:'Bright Future School', amount:150000, currency:'RWF', method:'mobile_money', mobile_network:'MTN', mobile_number:'250788123456', transaction_id:'MM-TRX-001', screenshot_url:'https://via.placeholder.com/420x300.png?text=Screenshot+1', status:'pending', notes:'' },
-      { id:'pay_002', created_at:new Date(Date.now()-1000*60*60*24).toISOString(), user_id:'user_2', school_id:'sch_002', school_name:'St Mary High', amount:200000, currency:'RWF', method:'bank_transfer', mobile_network:'Bank of Kigali', mobile_number:'250788652314', transaction_id:'BTX-20261012', screenshot_url:'https://via.placeholder.com/420x300.png?text=Screenshot+2', status:'pending', notes:'' }
+      {id:'pay_001', created_at:new Date().toISOString(), user_id:'user_1', school_id:'sch_001', school_name:'Bright Future School', amount:150000, currency:'RWF', method:'mobile_money', mobile_network:'MTN', mobile_number:'+250788123456', transaction_id:'MM-TRX-001', screenshot_url:'https://via.placeholder.com/640x420.png?text=Screenshot+1', status:'pending', notes:''},
+      {id:'pay_002', created_at:new Date(Date.now()-86400000).toISOString(), user_id:'user_2', school_id:'sch_002', school_name:'St Mary High', amount:200000, currency:'RWF', method:'bank_transfer', mobile_network:'Bank of Kigali', mobile_number:'+250788652314', transaction_id:'BTX-20261012', screenshot_url:'https://via.placeholder.com/640x420.png?text=Screenshot+2', status:'pending', notes:''}
     ];
 
     let payments = [...MOCK];
     let filtered = [...payments];
-    const listEl = document.getElementById('paymentsList');
-    const emptyEl = document.getElementById('empty');
+    const list = document.getElementById('list');
+    const count = document.getElementById('count');
+
+    function formatAmount(a,c='RWF'){ return new Intl.NumberFormat('en-US').format(a) + ' ' + c; }
+    function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
     function render(){
-      listEl.innerHTML = '';
-      if(!filtered.length){ emptyEl.style.display='block'; return; } else emptyEl.style.display='none';
+      list.innerHTML='';
+      if(!filtered.length){ document.getElementById('empty').style.display='block'; count.textContent='0'; return; }
+      document.getElementById('empty').style.display='none';
+      count.textContent = filtered.length;
       filtered.forEach(p=>{
-        const row = document.createElement('div'); row.className='req-row';
-        const main = document.createElement('div'); main.className='req-main';
-        const left = document.createElement('div'); left.className='meta';
-        left.innerHTML = `<div><div class='amount'>${formatAmount(p.amount,p.currency)}</div><div class='sub'>${p.method} • ${p.mobile_network} • ${p.transaction_id}</div></div><div style="min-width:200px;margin-left:8px"><div class='sub'>School: <strong>${escape(p.school_name)}</strong></div><div class='sub'>Payer: ${escape(p.mobile_number)} • ${new Date(p.created_at).toLocaleString()}</div></div>`;
-        const right = document.createElement('div'); right.innerHTML = `<div class='badge ${p.status}'>${p.status}</div>`;
-        main.appendChild(left); main.appendChild(right);
-        main.onclick = ()=>{ toggleDetail(p.id); };
-
-        const detail = document.createElement('div'); detail.className='detail'; detail.id='d-'+p.id;
-        detail.innerHTML = `<div><img src='${p.screenshot_url}' class='screenshot' alt='screenshot'></div><div class='actions'><button class='btn primary' onclick="openModal('${p.id}',event)">Open Verify</button><button class='btn ghost' onclick="download('${p.screenshot_url}')">Download</button></div>`;
-
-        row.appendChild(main); row.appendChild(detail); listEl.appendChild(row);
+        const row = document.createElement('div'); row.className='payment-row';
+        const left = document.createElement('div'); left.className='p-left';
+        const meta = document.createElement('div'); meta.className='p-meta';
+        meta.innerHTML = `<div class='amount'>${formatAmount(p.amount,p.currency)}</div><div class='muted'>${esc(p.method)} • ${esc(p.mobile_network)} • ${esc(p.transaction_id)}</div><div class='muted'>School: <strong style='color:#fff'>${esc(p.school_name)}</strong></div><div class='muted'>Payer: ${esc(p.mobile_number)} • ${new Date(p.created_at).toLocaleString()}</div>`;
+        left.appendChild(meta);
+        const right = document.createElement('div');
+        right.innerHTML = `<div style='display:flex;flex-direction:column;align-items:flex-end;gap:8px'><div class='badge ${p.status}'>${p.status}</div><div class='actions'><button class='btn ghost' onclick="openDetail('${p.id}',event)">View</button><button class='btn primary' onclick="openModal('${p.id}',event)">Verify</button></div></div>`;
+        row.appendChild(left); row.appendChild(right); list.appendChild(row);
       });
     }
 
-    function toggleDetail(id){ const d=document.getElementById('d-'+id); if(d) d.classList.toggle('open'); }
-    function formatAmount(a,c){ return new Intl.NumberFormat('en-US').format(a)+' '+(c||'RWF'); }
-    function escape(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function applyFilter(){ const q=document.getElementById('search').value.toLowerCase(); const s=document.getElementById('status').value; filtered = payments.filter(p=>{ if(s && p.status!==s) return false; if(!q) return true; return (p.transaction_id||'').toLowerCase().includes(q) || (p.mobile_number||'').toLowerCase().includes(q) || (p.school_name||'').toLowerCase().includes(q); }); render(); }
 
-    document.getElementById('q').addEventListener('input', ()=>{ applyFilter(); });
-    document.getElementById('statusFilter').addEventListener('change', ()=>{ applyFilter(); });
-    document.getElementById('refreshBtn').addEventListener('click', ()=>{ loadPayments(); });
+    document.getElementById('search').addEventListener('input', applyFilter);
+    document.getElementById('status').addEventListener('change', applyFilter);
+    document.getElementById('refresh').addEventListener('click', ()=>{ loadPayments(); });
+    document.getElementById('useBackend').addEventListener('click', ()=>{ CONFIG.useBackend = !CONFIG.useBackend; document.getElementById('useBackend').textContent = CONFIG.useBackend ? 'Backend Enabled' : 'Connect Backend'; showToast('Backend mode: '+CONFIG.useBackend,'info'); });
 
-    function applyFilter(){ const q=document.getElementById('q').value.toLowerCase(); const s=document.getElementById('statusFilter').value; filtered = payments.filter(p=>{ if(s && p.status!==s) return false; if(!q) return true; return (p.transaction_id||'').toLowerCase().includes(q) || (p.mobile_number||'').toLowerCase().includes(q) || (p.school_name||'').toLowerCase().includes(q) }); render(); }
+    async function loadPayments(){
+      if(CONFIG.useBackend){
+        try{
+          // TODO: replace url with your real endpoint or Supabase query
+          const res = await fetch((CONFIG.apiBase||'') + '/api/payments');
+          if(!res.ok) throw new Error('Failed to fetch');
+          const data = await res.json(); payments = data; filtered = [...payments]; applyFilter(); showToast('Loaded payments from backend','success');
+        }catch(e){ showToast('Failed to load from backend, using mock','error'); payments = [...MOCK]; filtered = [...payments]; applyFilter(); }
+      } else { payments = [...MOCK]; filtered = [...payments]; applyFilter(); showToast('Loaded mock payments','info'); }
+    }
 
-    function loadPayments(){ // placeholder for real backend fetch
-      // TODO: replace with fetch('/api/payments') when backend exists
-      payments = [...MOCK]; filtered = [...payments]; applyFilter(); showToast('Payments refreshed (mock)', 'info'); }
+    // Detail open simple handler (expand inline)
+    function openDetail(id,event){ event.stopPropagation(); const el = event.target.closest('.payment-row'); /* could expand inline - left as simple */ showToast('Use Verify to see details','info'); }
 
-    // Modal
-    const modalBg = document.getElementById('modal');
-    const mTitle = document.getElementById('modalTitle');
-    const mSchool = document.getElementById('mSchool');
-    const mAmount = document.getElementById('mAmount');
-    const mTx = document.getElementById('mTx');
-    const mPayer = document.getElementById('mPayer');
-    const mImg = document.getElementById('mImg');
-    const mNotes = document.getElementById('mNotes');
-    let current = null;
+    // Modal logic
+    const modal = document.getElementById('modalBackdrop'); const mImg = document.getElementById('mImg'); let current=null;
+    function openModal(id,event){ if(event) event.stopPropagation(); current = payments.find(x=>x.id===id); if(!current) return; document.getElementById('mSchool').textContent = current.school_name; document.getElementById('mAmount').textContent = formatAmount(current.amount,current.currency); document.getElementById('mDate').textContent = new Date(current.created_at).toLocaleString(); document.getElementById('mTx').textContent = current.transaction_id; document.getElementById('mPayer').textContent = (current.mobile_number||'') + ' • ' + (current.mobile_network||''); mImg.src = current.screenshot_url || ''; document.getElementById('mNotes').value = current.notes || ''; modal.style.display = 'flex'; }
+    document.getElementById('modalClose').addEventListener('click', ()=>{ modal.style.display='none'; });
+    document.getElementById('downloadBtn').addEventListener('click', ()=>{ if(current && current.screenshot_url) window.open(current.screenshot_url,'_blank'); else showToast('No screenshot available','error'); });
 
-    function openModal(id, evt){ if(evt) evt.stopPropagation(); const p=payments.find(x=>x.id===id); if(!p) return; current=p; mSchool.textContent=p.school_name; mAmount.textContent=formatAmount(p.amount,p.currency); mTx.textContent=p.transaction_id; mPayer.textContent=p.mobile_number+' • '+p.mobile_network; mImg.src=p.screenshot_url; mNotes.value=p.notes||''; modalBg.style.display='flex'; }
-    document.getElementById('modalClose').addEventListener('click', ()=>{ modalBg.style.display='none'; });
+    document.getElementById('modalApprove').addEventListener('click', async ()=>{
+      if(!current) return; const notes = document.getElementById('mNotes').value || '';
+      if(CONFIG.useBackend){
+        try{
+          const res = await fetch((CONFIG.apiBase||'') + '/api/payments/'+encodeURIComponent(current.id)+'/approve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({notes})});
+          if(!res.ok) throw new Error('Approve failed'); const data = await res.json(); showToast('Approved via backend','success'); // refresh list
+          await loadPayments();
+        }catch(e){ showToast('Approve failed: '+e.message,'error'); }
+      } else {
+        current.status = 'approved'; current.notes = notes; render(); showToast('Payment approved (mock). Entitlement would be created server-side.','success');
+      }
+      modal.style.display='none';
+    });
 
-    document.getElementById('approveBtn').addEventListener('click', ()=>{ if(!current) return; current.status='approved'; current.notes=mNotes.value||''; render(); modalBg.style.display='none'; showToast('Payment approved (mock). Entitlement would be granted server-side.', 'success'); });
-    document.getElementById('rejectBtn').addEventListener('click', ()=>{ if(!current) return; current.status='rejected'; current.notes=mNotes.value||''; render(); modalBg.style.display='none'; showToast('Payment rejected (mock).'); });
+    document.getElementById('modalReject').addEventListener('click', async ()=>{
+      if(!current) return; const notes = document.getElementById('mNotes').value || '';
+      if(CONFIG.useBackend){
+        try{ const res = await fetch((CONFIG.apiBase||'') + '/api/payments/'+encodeURIComponent(current.id)+'/reject',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({notes})}); if(!res.ok) throw new Error('Reject failed'); showToast('Rejected via backend','info'); await loadPayments(); }catch(e){ showToast('Reject failed: '+e.message,'error'); }
+      } else { current.status = 'rejected'; current.notes = notes; render(); showToast('Payment rejected (mock).','info'); }
+      modal.style.display='none';
+    });
 
-    function download(url){ if(!url) return showToast('No screenshot', 'error'); window.open(url,'_blank'); }
+    // Small toast helper
+    function showToast(msg,type='info'){ const d=document.createElement('div'); d.textContent=msg; d.style.position='fixed'; d.style.right='18px'; d.style.bottom='18px'; d.style.background = type==='success'? '#14532d' : type==='error'? '#7f1d1d' : '#1e3a5f'; d.style.color='#fff'; d.style.padding='10px 14px'; d.style.borderRadius='8px'; d.style.zIndex=9999; document.body.appendChild(d); setTimeout(()=>{ d.style.opacity='0'; setTimeout(()=>d.remove(),300); },3200); }
 
-    // toast
-    function showToast(msg,type='info'){ const d=document.createElement('div'); d.textContent=msg; d.style.position='fixed'; d.style.right='18px'; d.style.bottom='18px'; d.style.background= type==='success'? '#14532d': type==='error'? '#7f1d1d':'#1e3a5f'; d.style.color='#fff'; d.style.padding='10px 14px'; d.style.borderRadius='8px'; document.body.appendChild(d); setTimeout(()=>d.remove(),3500); }
-
-    // initial
-    loadPayments(); render();
-
+    // Initial load
+    loadPayments();
+    render();
   </script>
 </body>
 </html>
